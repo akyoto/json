@@ -68,13 +68,13 @@ func (decoder *decoder) Decode(object interface{}) error {
 						length := len(captured)
 
 						if decoder.stringsLength+length > len(decoder.strings) {
-							newBufferLength := len(decoder.strings)
+							newBufferLength := stringBufferSize
 
 							if newBufferLength < length {
 								newBufferLength = length
 							}
 
-							decoder.strings = make([]byte, stringBufferSize)
+							decoder.strings = make([]byte, newBufferLength)
 							decoder.stringsLength = 0
 						}
 
