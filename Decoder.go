@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strings"
 	"sync"
 
 	"github.com/akyoto/stringutils/unsafe"
@@ -24,8 +23,6 @@ var decoderPool = sync.Pool{
 		}
 	},
 }
-
-type fieldIndexMap = map[string]int
 
 type decoder struct {
 	reader        io.Reader
@@ -49,7 +46,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 	v = v.Elem()
 	t := v.Type()
 	captureStart := -1
-	fieldIndices := decoder.fieldIndices(t)
+	fieldIndices := decoder.fieldIndexMap(t)
 	fieldIndex := 0
 	fieldExists := false
 
@@ -102,37 +99,6 @@ func (decoder *decoder) Decode(object interface{}) error {
 			return nil
 		}
 	}
-}
-
-// fieldIndices returns a map of field names mapped to their index.
-func (decoder *decoder) fieldIndices(structType reflect.Type) fieldIndexMap {
-	fieldsObj, exists := decoder.types[structType]
-
-	if exists {
-		return fieldsObj
-	}
-
-	fields := fieldIndexMap{}
-
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		jsonName := field.Tag.Get("json")
-
-		if jsonName != "" {
-			comma := strings.Index(jsonName, ",")
-
-			if comma != -1 {
-				jsonName = jsonName[:comma]
-			}
-
-			fields[jsonName] = i
-		} else {
-			fields[field.Name] = i
-		}
-	}
-
-	decoder.types[structType] = fields
-	return fields
 }
 
 // Close frees up resources and returns the decoder to the pool.
