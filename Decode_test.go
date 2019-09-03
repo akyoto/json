@@ -37,9 +37,9 @@ func TestDecode(t *testing.T) {
 		t.Fatalf("Decode failed: %v", err)
 	}
 
-	// if movie.Title != "The Last Samurai" || movie.Director != "Edward Zwick" {
-	// 	t.Fatalf("Invalid data: %v", movie)
-	// }
+	if movie.Title != "The Last Samurai" || movie.Director != "Edward Zwick" {
+		t.Fatalf("Invalid data: %v", movie)
+	}
 }
 
 func BenchmarkDecode(b *testing.B) {
@@ -80,6 +80,50 @@ func BenchmarkDecodeJsoniter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
 		err := decoder.Decode(person)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	person := &Movie{}
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
+		decoder := json.NewDecoder(jsonReader)
+		err := decoder.Decode(person)
+		decoder.Close()
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalStd(b *testing.B) {
+	person := &Movie{}
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := stdJSON.NewDecoder(jsonReader).Decode(person)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalJsoniter(b *testing.B) {
+	person := &Movie{}
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := jsoniter.NewDecoder(jsonReader).Decode(person)
 
 		if err != nil && err != io.EOF {
 			b.Fatalf("Decode failed: %v", err)

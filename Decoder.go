@@ -1,26 +1,46 @@
 package json
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
+	"sync"
+
+	"github.com/akyoto/stringutils/unsafe"
 )
+
+const (
+	readBufferSize   = 4096
+	stringBufferSize = 4096
+)
+
+var decoderPool = sync.Pool{
+	New: func() interface{} {
+		return &decoder{
+			buffer:  make([]byte, readBufferSize),
+			strings: make([]byte, stringBufferSize),
+			types:   map[reflect.Type]fieldIndex{},
+		}
+	},
+}
 
 type fieldIndex = map[string]int
 
 type decoder struct {
-	reader io.Reader
-	buffer []byte
-	types  map[reflect.Type]fieldIndex
+	reader        io.Reader
+	buffer        []byte
+	strings       []byte
+	stringsLength int
+	types         map[reflect.Type]fieldIndex
 }
 
 // NewDecoder creates a new JSON decoder.
 func NewDecoder(reader io.Reader) *decoder {
-	return &decoder{
-		reader: reader,
-		buffer: make([]byte, 4096),
-		types:  map[reflect.Type]fieldIndex{},
-	}
+	poolObj := decoderPool.Get()
+	decoder := poolObj.(*decoder)
+	decoder.reader = reader
+	return decoder
 }
 
 // Decode deserializes the JSON data into the given object.
@@ -28,7 +48,10 @@ func (decoder *decoder) Decode(object interface{}) error {
 	v := reflect.ValueOf(object)
 	v = v.Elem()
 	t := v.Type()
-	decoder.fieldIndex(t)
+	captureStart := -1
+	fieldIndices := decoder.fieldIndex(t)
+	fieldIndex := 0
+	fieldExists := false
 
 	for {
 		n, err := decoder.reader.Read(decoder.buffer)
@@ -38,8 +61,40 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			switch c {
 			case '"':
-			case '{':
-			case '}':
+				if captureStart >= 0 {
+					captured := decoder.buffer[captureStart:i]
+
+					if fieldExists {
+						length := len(captured)
+
+						if decoder.stringsLength+length > len(decoder.strings) {
+							newBufferLength := len(decoder.strings)
+
+							if newBufferLength < length {
+								newBufferLength = length
+							}
+
+							decoder.strings = make([]byte, stringBufferSize)
+							decoder.stringsLength = 0
+						}
+
+						destination := decoder.strings[decoder.stringsLength : decoder.stringsLength+length]
+						copy(destination, captured)
+						decoder.stringsLength += length
+						v.Field(fieldIndex).SetString(unsafe.BytesToString(destination))
+						fieldExists = false
+					} else {
+						fieldIndex, fieldExists = fieldIndices[string(captured)]
+
+						if !fieldExists {
+							return fmt.Errorf("Field does not exist: %s", string(captured))
+						}
+					}
+
+					captureStart = -1
+				} else {
+					captureStart = i + 1
+				}
 			}
 		}
 
@@ -78,4 +133,10 @@ func (decoder *decoder) fieldIndex(structType reflect.Type) fieldIndex {
 
 	decoder.types[structType] = fields
 	return fields
+}
+
+// Close frees up resources and returns the decoder to the pool.
+func (decoder *decoder) Close() {
+	decoder.reader = nil
+	decoderPool.Put(decoder)
 }
