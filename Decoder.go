@@ -20,19 +20,19 @@ var decoderPool = sync.Pool{
 		return &decoder{
 			buffer:  make([]byte, readBufferSize),
 			strings: make([]byte, stringBufferSize),
-			types:   map[reflect.Type]fieldIndex{},
+			types:   make(map[reflect.Type]fieldIndexMap),
 		}
 	},
 }
 
-type fieldIndex = map[string]int
+type fieldIndexMap = map[string]int
 
 type decoder struct {
 	reader        io.Reader
 	buffer        []byte
 	strings       []byte
 	stringsLength int
-	types         map[reflect.Type]fieldIndex
+	types         map[reflect.Type]fieldIndexMap
 }
 
 // NewDecoder creates a new JSON decoder.
@@ -49,7 +49,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 	v = v.Elem()
 	t := v.Type()
 	captureStart := -1
-	fieldIndices := decoder.fieldIndex(t)
+	fieldIndices := decoder.fieldIndices(t)
 	fieldIndex := 0
 	fieldExists := false
 
@@ -104,15 +104,15 @@ func (decoder *decoder) Decode(object interface{}) error {
 	}
 }
 
-// fieldIndex returns a map of field names mapped to their index.
-func (decoder *decoder) fieldIndex(structType reflect.Type) fieldIndex {
+// fieldIndices returns a map of field names mapped to their index.
+func (decoder *decoder) fieldIndices(structType reflect.Type) fieldIndexMap {
 	fieldsObj, exists := decoder.types[structType]
 
 	if exists {
 		return fieldsObj
 	}
 
-	fields := fieldIndex{}
+	fields := fieldIndexMap{}
 
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
