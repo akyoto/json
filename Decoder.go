@@ -66,43 +66,50 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			// String capture
 			if stringStart >= 0 {
-				if c == '"' {
-					captured := decoder.buffer[stringStart:i]
+				for c != '"' {
+					i++
 
-					if fieldExists {
-						length := len(captured)
-
-						if decoder.stringsLength+length > len(decoder.strings) {
-							newBufferLength := len(decoder.strings) * 2
-
-							if newBufferLength > maxStringBufferSize {
-								newBufferLength = maxStringBufferSize
-							}
-
-							if newBufferLength < length {
-								newBufferLength = length
-							}
-
-							decoder.strings = make([]byte, newBufferLength)
-							decoder.stringsLength = 0
-						}
-
-						destination := decoder.strings[decoder.stringsLength : decoder.stringsLength+length]
-						copy(destination, captured)
-						decoder.stringsLength += length
-						v.Field(fieldIndex).SetString(unsafe.BytesToString(destination))
-						fieldExists = false
-					} else {
-						fieldIndex, fieldExists = fieldIndices[string(captured)]
-
-						if !fieldExists {
-							return fmt.Errorf("Field does not exist: %s", string(captured))
-						}
+					if i >= n {
+						goto end
 					}
 
-					stringStart = -1
+					c = decoder.buffer[i]
 				}
 
+				captured := decoder.buffer[stringStart:i]
+
+				if fieldExists {
+					length := len(captured)
+
+					if decoder.stringsLength+length > len(decoder.strings) {
+						newBufferLength := len(decoder.strings) * 2
+
+						if newBufferLength > maxStringBufferSize {
+							newBufferLength = maxStringBufferSize
+						}
+
+						if newBufferLength < length {
+							newBufferLength = length
+						}
+
+						decoder.strings = make([]byte, newBufferLength)
+						decoder.stringsLength = 0
+					}
+
+					destination := decoder.strings[decoder.stringsLength : decoder.stringsLength+length]
+					copy(destination, captured)
+					decoder.stringsLength += length
+					v.Field(fieldIndex).SetString(unsafe.BytesToString(destination))
+					fieldExists = false
+				} else {
+					fieldIndex, fieldExists = fieldIndices[string(captured)]
+
+					if !fieldExists {
+						return fmt.Errorf("Field does not exist: %s", string(captured))
+					}
+				}
+
+				stringStart = -1
 				continue
 			}
 
@@ -111,6 +118,11 @@ func (decoder *decoder) Decode(object interface{}) error {
 				for c >= '0' && c <= '9' {
 					currentNumber = (currentNumber * 10) + (int64(c) - '0')
 					i++
+
+					if i >= n {
+						goto end
+					}
+
 					c = decoder.buffer[i]
 				}
 
@@ -148,6 +160,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 			}
 		}
 
+	end:
 		if err == io.EOF {
 			return nil
 		}
