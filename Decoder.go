@@ -99,6 +99,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				continue
 			}
 
+			// Number capture
 			if inNumber {
 				if c >= '0' && c <= '9' {
 					currentNumber = (currentNumber * 10) + (int64(c) - '0')
