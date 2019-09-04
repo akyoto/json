@@ -35,9 +35,9 @@ func BenchmarkEncode(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodeStd(b *testing.B) {
+func BenchmarkEncodeJsoniter(b *testing.B) {
 	b.ReportAllocs()
-	encoder := stdJSON.NewEncoder(ioutil.Discard)
+	encoder := jsoniter.NewEncoder(ioutil.Discard)
 
 	for i := 0; i < b.N; i++ {
 		err := encoder.Encode(object)
@@ -48,9 +48,9 @@ func BenchmarkEncodeStd(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodeJsoniter(b *testing.B) {
+func BenchmarkEncodeStd(b *testing.B) {
 	b.ReportAllocs()
-	encoder := jsoniter.NewEncoder(ioutil.Discard)
+	encoder := stdJSON.NewEncoder(ioutil.Discard)
 
 	for i := 0; i < b.N; i++ {
 		err := encoder.Encode(object)

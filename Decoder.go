@@ -44,28 +44,26 @@ func NewDecoder(reader io.Reader) *decoder {
 func (decoder *decoder) Decode(object interface{}) error {
 	v := reflect.ValueOf(object)
 	v = v.Elem()
-	t := v.Type()
+	fieldIndices := decoder.fieldIndexMap(v.Type())
 	stringStart := -1
-	currentNumber := int64(0)
-	inNumber := false
-	isFloat := false
-	fieldIndices := decoder.fieldIndexMap(t)
-	fieldIndex := 0
-	fieldExists := false
+
+	var (
+		i             int
+		c             byte
+		fieldIndex    int
+		fieldExists   bool
+		currentNumber int64
+		inNumber      bool
+		isFloat       bool
+	)
 
 	for {
 		n, err := decoder.reader.Read(decoder.buffer)
 
-		for i := 0; i < n; i++ {
-			c := decoder.buffer[i]
-
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				currentNumber = (currentNumber * 10) + (int64(c) - '0')
-				inNumber = true
-
-			case '"':
-				if stringStart >= 0 {
+		for i, c = range decoder.buffer[:n] {
+			// String capture
+			if stringStart >= 0 {
+				if c == '"' {
 					captured := decoder.buffer[stringStart:i]
 
 					if fieldExists {
@@ -96,12 +94,23 @@ func (decoder *decoder) Decode(object interface{}) error {
 					}
 
 					stringStart = -1
-				} else {
-					stringStart = i + 1
 				}
 
-			case ',', '}':
-				if inNumber {
+				continue
+			}
+
+			if inNumber {
+				if c >= '0' && c <= '9' {
+					currentNumber = (currentNumber * 10) + (int64(c) - '0')
+					continue
+				}
+
+				if c == '.' {
+					isFloat = true
+					continue
+				}
+
+				if c == ',' || c == '}' {
 					if isFloat {
 						// TODO: ...
 						number := 0.0
@@ -114,10 +123,19 @@ func (decoder *decoder) Decode(object interface{}) error {
 					isFloat = false
 					inNumber = false
 					fieldExists = false
+					continue
 				}
 
-			case '.':
-				isFloat = true
+				continue
+			}
+
+			switch c {
+			case '"':
+				stringStart = i + 1
+
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+				currentNumber = int64(c) - '0'
+				inNumber = true
 			}
 		}
 

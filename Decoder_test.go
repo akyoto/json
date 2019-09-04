@@ -13,16 +13,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-var (
-	jsonBytes  []byte
-	jsonReader io.ReadSeeker
-)
-
-func init() {
-	jsonBytes, _ = ioutil.ReadFile("testdata/movie-numbers.json")
-	jsonReader = bytes.NewReader(jsonBytes)
-}
-
 type Movie struct {
 	Title    string `json:"title"`
 	Director string `json:"director"`
@@ -42,9 +32,21 @@ func TestDecodeStrings(t *testing.T) {
 }
 
 func TestDecodeNumbers(t *testing.T) {
-	movie, err := load("testdata/movie-numbers.json")
+	movie, err := load("testdata/movie-integers.json")
 	assert.Nil(t, err)
 	assert.NotNil(t, movie)
+	assert.Equal(t, movie.Year, 2003)
+	assert.Equal(t, movie.Duration, 160)
+	assert.Equal(t, movie.Budget, 140000000)
+}
+
+func TestDecodeAll(t *testing.T) {
+	movie, err := load("testdata/movie.json")
+	assert.Nil(t, err)
+	assert.NotNil(t, movie)
+	assert.Equal(t, movie.Title, "The Last Samurai")
+	assert.Equal(t, movie.Director, "Edward Zwick")
+	assert.Equal(t, len(movie.Plot), 682)
 	assert.Equal(t, movie.Year, 2003)
 	assert.Equal(t, movie.Duration, 160)
 	assert.Equal(t, movie.Budget, 140000000)
@@ -70,13 +72,15 @@ func load(path string) (*Movie, error) {
 	return movie, nil
 }
 
-func BenchmarkDecode(b *testing.B) {
+func BenchmarkDecodeIntegers(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-integers.json")
+	reader := bytes.NewReader(data)
 	movie := &Movie{}
-	decoder := json.NewDecoder(jsonReader)
+	decoder := json.NewDecoder(reader)
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
 		err := decoder.Decode(movie)
 
 		if err != nil && err != io.EOF {
@@ -85,13 +89,15 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
-func BenchmarkDecodeStd(b *testing.B) {
+func BenchmarkDecodeIntegersJsoniter(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-integers.json")
+	reader := bytes.NewReader(data)
 	movie := &Movie{}
-	decoder := stdJSON.NewDecoder(jsonReader)
+	decoder := jsoniter.NewDecoder(reader)
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
 		err := decoder.Decode(movie)
 
 		if err != nil && err != io.EOF {
@@ -100,13 +106,15 @@ func BenchmarkDecodeStd(b *testing.B) {
 	}
 }
 
-func BenchmarkDecodeJsoniter(b *testing.B) {
+func BenchmarkDecodeIntegersStd(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-integers.json")
+	reader := bytes.NewReader(data)
 	movie := &Movie{}
-	decoder := jsoniter.NewDecoder(jsonReader)
+	decoder := stdJSON.NewDecoder(reader)
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
 		err := decoder.Decode(movie)
 
 		if err != nil && err != io.EOF {
@@ -115,13 +123,117 @@ func BenchmarkDecodeJsoniter(b *testing.B) {
 	}
 }
 
-func BenchmarkFullDecode(b *testing.B) {
+func BenchmarkDecodeStrings(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-strings.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := json.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeStringsJsoniter(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-strings.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := jsoniter.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeStringsStd(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-strings.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := stdJSON.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeAll(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := json.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeAllJsoniter(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := jsoniter.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeAllStd(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := stdJSON.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkWithNewDecoder(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie.json")
+	reader := bytes.NewReader(data)
 	movie := &Movie{}
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
-		decoder := json.NewDecoder(jsonReader)
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		decoder := json.NewDecoder(reader)
 		err := decoder.Decode(movie)
 		decoder.Close()
 
@@ -131,13 +243,15 @@ func BenchmarkFullDecode(b *testing.B) {
 	}
 }
 
-func BenchmarkFullDecodeStd(b *testing.B) {
+func BenchmarkWithNewDecoderJsoniter(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie.json")
+	reader := bytes.NewReader(data)
 	movie := &Movie{}
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
-		err := stdJSON.NewDecoder(jsonReader).Decode(movie)
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := jsoniter.NewDecoder(reader).Decode(movie)
 
 		if err != nil && err != io.EOF {
 			b.Fatalf("Decode failed: %v", err)
@@ -145,52 +259,15 @@ func BenchmarkFullDecodeStd(b *testing.B) {
 	}
 }
 
-func BenchmarkFullDecodeJsoniter(b *testing.B) {
+func BenchmarkWithNewDecoderStd(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie.json")
+	reader := bytes.NewReader(data)
 	movie := &Movie{}
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		jsonReader.Seek(0, io.SeekStart) // nolint:errcheck
-		err := jsoniter.NewDecoder(jsonReader).Decode(movie)
-
-		if err != nil && err != io.EOF {
-			b.Fatalf("Decode failed: %v", err)
-		}
-	}
-}
-
-func BenchmarkUnmarshal(b *testing.B) {
-	movie := &Movie{}
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		err := json.Unmarshal(jsonBytes, movie)
-
-		if err != nil && err != io.EOF {
-			b.Fatalf("Decode failed: %v", err)
-		}
-	}
-}
-
-func BenchmarkUnmarshalStd(b *testing.B) {
-	movie := &Movie{}
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		err := stdJSON.Unmarshal(jsonBytes, movie)
-
-		if err != nil && err != io.EOF {
-			b.Fatalf("Decode failed: %v", err)
-		}
-	}
-}
-
-func BenchmarkUnmarshalJsoniter(b *testing.B) {
-	movie := &Movie{}
-	b.ReportAllocs()
-
-	for i := 0; i < b.N; i++ {
-		err := jsoniter.Unmarshal(jsonBytes, movie)
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := stdJSON.NewDecoder(reader).Decode(movie)
 
 		if err != nil && err != io.EOF {
 			b.Fatalf("Decode failed: %v", err)

@@ -19,6 +19,6 @@ func Unmarshal(data []byte, object interface{}) error {
 	decoder := NewDecoder(reader)
 	err := decoder.Decode(object)
 	decoder.Close()
-	readerPool.Put(readerObject)
+	readerPool.Put(reader)
 	return err
 }
