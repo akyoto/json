@@ -60,7 +60,9 @@ func (decoder *decoder) Decode(object interface{}) error {
 	for {
 		n, err := decoder.reader.Read(decoder.buffer)
 
-		for i, c = range decoder.buffer[:n] {
+		for i = 0; i < n; i++ {
+			c = decoder.buffer[i]
+
 			// String capture
 			if stringStart >= 0 {
 				if c == '"' {
@@ -101,9 +103,10 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			// Number capture
 			if inNumber {
-				if c >= '0' && c <= '9' {
+				for c >= '0' && c <= '9' {
 					currentNumber = (currentNumber * 10) + (int64(c) - '0')
-					continue
+					i++
+					c = decoder.buffer[i]
 				}
 
 				if c == '.' {
