@@ -3,6 +3,7 @@ module github.com/akyoto/json
 go 1.12
 
 require (
+	github.com/akyoto/assert v0.2.1
 	github.com/akyoto/stringutils v0.2.3
 	github.com/json-iterator/go v1.1.7
 	github.com/kr/pretty v0.1.0 // indirect

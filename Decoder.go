@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/akyoto/stringutils/convert"
+
 	"github.com/akyoto/stringutils/unsafe"
 )
 
@@ -49,6 +51,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 	fieldIndices := decoder.fieldIndexMap(t)
 	fieldIndex := 0
 	fieldExists := false
+	isFloat := false
 
 	for {
 		n, err := decoder.reader.Read(decoder.buffer)
@@ -56,9 +59,8 @@ func (decoder *decoder) Decode(object interface{}) error {
 		for i := 0; i < n; i++ {
 			c := decoder.buffer[i]
 
-			switch c {
-			case '"':
-				if captureStart >= 0 {
+			if c == '"' {
+				if captureStart > 0 {
 					captured := decoder.buffer[captureStart:i]
 
 					if fieldExists {
@@ -92,6 +94,38 @@ func (decoder *decoder) Decode(object interface{}) error {
 				} else {
 					captureStart = i + 1
 				}
+
+				continue
+			}
+
+			if c >= '0' && c <= '9' {
+				if captureStart == -1 {
+					captureStart = i
+				}
+
+				continue
+			}
+
+			if c == '\n' {
+				if captureStart > 0 {
+					if isFloat {
+						// TODO: ...
+						number := 0.0
+						v.Field(fieldIndex).SetFloat(number)
+					} else {
+						number := convert.DecToInt(decoder.buffer[captureStart:i])
+						v.Field(fieldIndex).SetInt(int64(number))
+					}
+
+					captureStart = -1
+				}
+
+				continue
+			}
+
+			if c == '.' {
+				isFloat = true
+				continue
 			}
 		}
 

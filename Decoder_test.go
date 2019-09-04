@@ -7,12 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/akyoto/assert"
 	"github.com/akyoto/json"
 	jsoniter "github.com/json-iterator/go"
 )
 
 var (
-	jsonString = `{"title":"The Last Samurai","director":"Edward Zwick"}`
+	jsonString = `{"title":"The Last Samurai","director":"Edward Zwick","year":2003}`
 	jsonBytes  = []byte(jsonString)
 	jsonReader = strings.NewReader(jsonString)
 )
@@ -20,13 +21,32 @@ var (
 type Movie struct {
 	Title    string `json:"title"`
 	Director string `json:"director"`
+	Year     int    `json:"year"`
 }
 
-func TestDecode(t *testing.T) {
-	file, err := os.Open("testdata/movie-simple.json")
+func TestDecodeStrings(t *testing.T) {
+	movie, err := load("testdata/movie-strings.json")
+	assert.Nil(t, err)
+	assert.NotNil(t, movie)
+	assert.Equal(t, movie.Title, "The Last Samurai")
+	assert.Equal(t, movie.Director, "Edward Zwick")
+}
+
+func TestDecodeNumbers(t *testing.T) {
+	movie, err := load("testdata/movie-numbers.json")
+	assert.Nil(t, err)
+	assert.NotNil(t, movie)
+	assert.Equal(t, movie.Title, "The Last Samurai")
+	assert.Equal(t, movie.Director, "Edward Zwick")
+	assert.Equal(t, movie.Year, 2003)
+}
+
+// load loads a single JSON file as movie data.
+func load(path string) (*Movie, error) {
+	file, err := os.Open(path)
 
 	if err != nil {
-		t.Fatalf("os.Open failed: %v", err)
+		return nil, err
 	}
 
 	defer file.Close()
@@ -35,12 +55,10 @@ func TestDecode(t *testing.T) {
 	err = json.NewDecoder(file).Decode(movie)
 
 	if err != nil {
-		t.Fatalf("Decode failed: %v", err)
+		return nil, err
 	}
 
-	if movie.Title != "The Last Samurai" || movie.Director != "Edward Zwick" {
-		t.Fatalf("Invalid data: %v", movie)
-	}
+	return movie, nil
 }
 
 func BenchmarkDecode(b *testing.B) {
