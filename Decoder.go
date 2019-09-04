@@ -59,7 +59,8 @@ func (decoder *decoder) Decode(object interface{}) error {
 		for i := 0; i < n; i++ {
 			c := decoder.buffer[i]
 
-			if c == '"' {
+			switch c {
+			case '"':
 				if captureStart > 0 {
 					captured := decoder.buffer[captureStart:i]
 
@@ -95,18 +96,12 @@ func (decoder *decoder) Decode(object interface{}) error {
 					captureStart = i + 1
 				}
 
-				continue
-			}
-
-			if c >= '0' && c <= '9' {
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 				if captureStart == -1 {
 					captureStart = i
 				}
 
-				continue
-			}
-
-			if c == '\n' {
+			case '\n':
 				if captureStart > 0 {
 					if isFloat {
 						// TODO: ...
@@ -120,12 +115,8 @@ func (decoder *decoder) Decode(object interface{}) error {
 					captureStart = -1
 				}
 
-				continue
-			}
-
-			if c == '.' {
+			case '.':
 				isFloat = true
-				continue
 			}
 		}
 
