@@ -60,6 +60,10 @@ func (decoder *decoder) Decode(object interface{}) error {
 			c := decoder.buffer[i]
 
 			switch c {
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+				currentNumber = (currentNumber * 10) + (int64(c) - '0')
+				inNumber = true
+
 			case '"':
 				if stringStart >= 0 {
 					captured := decoder.buffer[stringStart:i]
@@ -95,10 +99,6 @@ func (decoder *decoder) Decode(object interface{}) error {
 				} else {
 					stringStart = i + 1
 				}
-
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				currentNumber = (currentNumber * 10) + (int64(c) - '0')
-				inNumber = true
 
 			case ',', '}':
 				if inNumber {

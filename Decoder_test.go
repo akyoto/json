@@ -43,8 +43,6 @@ func TestDecodeNumbers(t *testing.T) {
 	movie, err := load("testdata/movie-numbers.json")
 	assert.Nil(t, err)
 	assert.NotNil(t, movie)
-	assert.Equal(t, movie.Title, "The Last Samurai")
-	assert.Equal(t, movie.Director, "Edward Zwick")
 	assert.Equal(t, movie.Year, 2003)
 	assert.Equal(t, movie.Duration, 160)
 	assert.Equal(t, movie.Budget, 140000000)
