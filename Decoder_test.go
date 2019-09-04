@@ -1,10 +1,11 @@
 package json_test
 
 import (
+	"bytes"
 	stdJSON "encoding/json"
 	"io"
+	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/akyoto/assert"
@@ -13,10 +14,14 @@ import (
 )
 
 var (
-	jsonString = `{"title":"The Last Samurai","director":"Edward Zwick","year":2003}`
-	jsonBytes  = []byte(jsonString)
-	jsonReader = strings.NewReader(jsonString)
+	jsonBytes  []byte
+	jsonReader io.ReadSeeker
 )
+
+func init() {
+	jsonBytes, _ = ioutil.ReadFile("testdata/movie-numbers.json")
+	jsonReader = bytes.NewReader(jsonBytes)
+}
 
 type Movie struct {
 	Title    string `json:"title"`

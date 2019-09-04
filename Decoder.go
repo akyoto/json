@@ -47,7 +47,9 @@ func (decoder *decoder) Decode(object interface{}) error {
 	v := reflect.ValueOf(object)
 	v = v.Elem()
 	t := v.Type()
-	captureStart := -1
+	stringStart := -1
+	numberStart := -1
+	capturedSpaces := 0
 	fieldIndices := decoder.fieldIndexMap(t)
 	fieldIndex := 0
 	fieldExists := false
@@ -61,8 +63,8 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			switch c {
 			case '"':
-				if captureStart > 0 {
-					captured := decoder.buffer[captureStart:i]
+				if stringStart >= 0 {
+					captured := decoder.buffer[stringStart:i]
 
 					if fieldExists {
 						length := len(captured)
@@ -91,32 +93,39 @@ func (decoder *decoder) Decode(object interface{}) error {
 						}
 					}
 
-					captureStart = -1
+					stringStart = -1
 				} else {
-					captureStart = i + 1
+					stringStart = i + 1
 				}
 
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				if captureStart == -1 {
-					captureStart = i
+				if numberStart == -1 {
+					numberStart = i
 				}
 
-			case '\n':
-				if captureStart > 0 {
+			case ',', '}':
+				if numberStart >= 0 {
 					if isFloat {
 						// TODO: ...
 						number := 0.0
 						v.Field(fieldIndex).SetFloat(number)
 					} else {
-						number := convert.DecToInt(decoder.buffer[captureStart:i])
+						number := convert.DecToInt(decoder.buffer[numberStart : i-capturedSpaces])
 						v.Field(fieldIndex).SetInt(int64(number))
 					}
 
-					captureStart = -1
+					numberStart = -1
+					capturedSpaces = 0
+					isFloat = false
 				}
 
 			case '.':
 				isFloat = true
+
+			case ' ', '\t', '\n':
+				if numberStart >= 0 {
+					capturedSpaces++
+				}
 			}
 		}
 
