@@ -27,6 +27,8 @@ type Movie struct {
 	Title    string `json:"title"`
 	Director string `json:"director"`
 	Year     int    `json:"year"`
+	Duration int    `json:"duration"`
+	Budget   int    `json:"budget"`
 }
 
 func TestDecodeStrings(t *testing.T) {
@@ -44,6 +46,8 @@ func TestDecodeNumbers(t *testing.T) {
 	assert.Equal(t, movie.Title, "The Last Samurai")
 	assert.Equal(t, movie.Director, "Edward Zwick")
 	assert.Equal(t, movie.Year, 2003)
+	assert.Equal(t, movie.Duration, 160)
+	assert.Equal(t, movie.Budget, 140000000)
 }
 
 // load loads a single JSON file as movie data.

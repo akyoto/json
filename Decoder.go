@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/akyoto/stringutils/convert"
-
 	"github.com/akyoto/stringutils/unsafe"
 )
 
@@ -48,12 +46,12 @@ func (decoder *decoder) Decode(object interface{}) error {
 	v = v.Elem()
 	t := v.Type()
 	stringStart := -1
-	numberStart := -1
-	capturedSpaces := 0
+	currentNumber := int64(0)
+	inNumber := false
+	isFloat := false
 	fieldIndices := decoder.fieldIndexMap(t)
 	fieldIndex := 0
 	fieldExists := false
-	isFloat := false
 
 	for {
 		n, err := decoder.reader.Read(decoder.buffer)
@@ -99,33 +97,27 @@ func (decoder *decoder) Decode(object interface{}) error {
 				}
 
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				if numberStart == -1 {
-					numberStart = i
-				}
+				currentNumber = (currentNumber * 10) + (int64(c) - '0')
+				inNumber = true
 
 			case ',', '}':
-				if numberStart >= 0 {
+				if inNumber {
 					if isFloat {
 						// TODO: ...
 						number := 0.0
 						v.Field(fieldIndex).SetFloat(number)
 					} else {
-						number := convert.DecToInt(decoder.buffer[numberStart : i-capturedSpaces])
-						v.Field(fieldIndex).SetInt(int64(number))
+						v.Field(fieldIndex).SetInt(currentNumber)
 					}
 
-					numberStart = -1
-					capturedSpaces = 0
+					currentNumber = 0
 					isFloat = false
+					inNumber = false
+					fieldExists = false
 				}
 
 			case '.':
 				isFloat = true
-
-			case ' ', '\t', '\n':
-				if numberStart >= 0 {
-					capturedSpaces++
-				}
 			}
 		}
 
