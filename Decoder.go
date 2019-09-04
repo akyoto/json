@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	readBufferSize   = 4096
-	stringBufferSize = 4096
+	readBufferSize      = 4096
+	stringBufferSize    = 4096
+	maxStringBufferSize = 16384
 )
 
 var decoderPool = sync.Pool{
@@ -72,7 +73,11 @@ func (decoder *decoder) Decode(object interface{}) error {
 						length := len(captured)
 
 						if decoder.stringsLength+length > len(decoder.strings) {
-							newBufferLength := stringBufferSize
+							newBufferLength := len(decoder.strings) * 2
+
+							if newBufferLength > maxStringBufferSize {
+								newBufferLength = maxStringBufferSize
+							}
 
 							if newBufferLength < length {
 								newBufferLength = length
