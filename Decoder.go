@@ -49,7 +49,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 	stringStart := -1
 	numbersStart := -1
 	commaPosition := -1
-	multiplyFloatBy := 1.0
+	divideFloatBy := 1
 
 	var (
 		i             int
@@ -120,7 +120,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 					currentNumber = (currentNumber * 10) + (int64(c) - '0')
 
 					if commaPosition >= 0 {
-						multiplyFloatBy *= 0.1
+						divideFloatBy *= 10
 					}
 
 					i++
@@ -139,7 +139,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				if c == ',' || c == '}' {
 					if commaPosition >= 0 {
-						v.Field(fieldIndex).SetFloat(float64(currentNumber) * multiplyFloatBy)
+						v.Field(fieldIndex).SetFloat(float64(currentNumber) / float64(divideFloatBy))
 					} else {
 						v.Field(fieldIndex).SetInt(currentNumber)
 					}
@@ -147,7 +147,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 					currentNumber = 0
 					numbersStart = -1
 					commaPosition = -1
-					multiplyFloatBy = 1.0
+					divideFloatBy = 1
 					fieldExists = false
 					continue
 				}

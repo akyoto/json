@@ -48,8 +48,8 @@ func TestDecodeFloats(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, movie)
 	assert.Equal(t, movie.Rating, 7.7)
-	// assert.Equal(t, movie.AspectRatio, 2.35)
-	// assert.Equal(t, movie.Profit, 454.627263)
+	assert.Equal(t, movie.AspectRatio, 2.35)
+	assert.Equal(t, movie.Profit, 454.627263)
 }
 
 func TestDecodeAll(t *testing.T) {
@@ -62,9 +62,9 @@ func TestDecodeAll(t *testing.T) {
 	assert.Equal(t, movie.Year, 2003)
 	assert.Equal(t, movie.Duration, 160)
 	assert.Equal(t, movie.Budget, 140000000)
-	// 	assert.Equal(t, movie.Rating, 7.7)
-	// 	assert.Equal(t, movie.AspectRatio, 2.35)
-	// 	assert.Equal(t, movie.Profit, 454.627263)
+	assert.Equal(t, movie.Rating, 7.7)
+	assert.Equal(t, movie.AspectRatio, 2.35)
+	assert.Equal(t, movie.Profit, 454.627263)
 }
 
 // load loads a single JSON file as movie data.
