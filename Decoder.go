@@ -47,6 +47,9 @@ func (decoder *decoder) Decode(object interface{}) error {
 	v = v.Elem()
 	fieldIndices := decoder.fieldIndexMap(v.Type())
 	stringStart := -1
+	numbersStart := -1
+	commaPosition := -1
+	multiplyFloatBy := 1.0
 
 	var (
 		i             int
@@ -54,8 +57,6 @@ func (decoder *decoder) Decode(object interface{}) error {
 		fieldIndex    int
 		fieldExists   bool
 		currentNumber int64
-		inNumber      bool
-		isFloat       bool
 	)
 
 	for {
@@ -114,9 +115,14 @@ func (decoder *decoder) Decode(object interface{}) error {
 			}
 
 			// Number capture
-			if inNumber {
+			if numbersStart >= 0 {
 				for c >= '0' && c <= '9' {
 					currentNumber = (currentNumber * 10) + (int64(c) - '0')
+
+					if commaPosition >= 0 {
+						multiplyFloatBy *= 0.1
+					}
+
 					i++
 
 					if i >= n {
@@ -127,22 +133,21 @@ func (decoder *decoder) Decode(object interface{}) error {
 				}
 
 				if c == '.' {
-					isFloat = true
+					commaPosition = i - numbersStart
 					continue
 				}
 
 				if c == ',' || c == '}' {
-					if isFloat {
-						// TODO: ...
-						number := 0.0
-						v.Field(fieldIndex).SetFloat(number)
+					if commaPosition >= 0 {
+						v.Field(fieldIndex).SetFloat(float64(currentNumber) * multiplyFloatBy)
 					} else {
 						v.Field(fieldIndex).SetInt(currentNumber)
 					}
 
 					currentNumber = 0
-					isFloat = false
-					inNumber = false
+					numbersStart = -1
+					commaPosition = -1
+					multiplyFloatBy = 1.0
 					fieldExists = false
 					continue
 				}
@@ -156,7 +161,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 				currentNumber = int64(c) - '0'
-				inNumber = true
+				numbersStart = i
 			}
 		}
 

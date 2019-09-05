@@ -43,6 +43,11 @@ func writeValue(writer io.Writer, v reflect.Value) error {
 		x := strconv.FormatInt(v.Int(), 10)
 		stringWriter.WriteString(x)
 
+	case reflect.Float64:
+		// TODO: Avoid allocation
+		x := strconv.FormatFloat(v.Float(), 'f', -1, 64)
+		stringWriter.WriteString(x)
+
 	case reflect.Struct:
 		writer.Write(bracketStart)
 		fieldCount := t.NumField()
