@@ -27,12 +27,15 @@ var decoderPool = sync.Pool{
 }
 
 type decoder struct {
+	// Initialized once
 	reader        io.Reader
 	buffer        []byte
 	strings       []byte
 	stringsLength int
 	stringsSlice  []string
 	types         map[reflect.Type]fieldIndexMap
+
+	// Initialized on every Decode call
 	fieldIndex    int
 	fieldExists   bool
 	currentNumber int64
