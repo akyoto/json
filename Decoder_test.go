@@ -14,12 +14,15 @@ import (
 )
 
 type Movie struct {
-	Title    string `json:"title"`
-	Director string `json:"director"`
-	Plot     string `json:"plot"`
-	Year     int    `json:"year"`
-	Duration int    `json:"duration"`
-	Budget   int    `json:"budget"`
+	Title       string  `json:"title"`
+	Director    string  `json:"director"`
+	Plot        string  `json:"plot"`
+	Year        int     `json:"year"`
+	Duration    int     `json:"duration"`
+	Budget      int     `json:"budget"`
+	Rating      float64 `json:"rating"`
+	AspectRatio float64 `json:"aspectRatio"`
+	Profit      float64 `json:"profit"`
 }
 
 func TestDecodeStrings(t *testing.T) {
@@ -31,13 +34,22 @@ func TestDecodeStrings(t *testing.T) {
 	assert.Equal(t, len(movie.Plot), 682)
 }
 
-func TestDecodeNumbers(t *testing.T) {
+func TestDecodeIntegers(t *testing.T) {
 	movie, err := load("testdata/movie-integers.json")
 	assert.Nil(t, err)
 	assert.NotNil(t, movie)
 	assert.Equal(t, movie.Year, 2003)
 	assert.Equal(t, movie.Duration, 160)
 	assert.Equal(t, movie.Budget, 140000000)
+}
+
+func TestDecodeFloats(t *testing.T) {
+	movie, err := load("testdata/movie-floats.json")
+	assert.Nil(t, err)
+	assert.NotNil(t, movie)
+	assert.Equal(t, movie.Rating, 7.7)
+	assert.Equal(t, movie.AspectRatio, 2.35)
+	assert.Equal(t, movie.Profit, 454.627263)
 }
 
 func TestDecodeAll(t *testing.T) {
