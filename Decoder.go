@@ -18,9 +18,10 @@ const (
 var decoderPool = sync.Pool{
 	New: func() interface{} {
 		return &decoder{
-			buffer:  make([]byte, readBufferSize),
-			strings: make([]byte, stringBufferSize),
-			types:   make(map[reflect.Type]fieldIndexMap),
+			buffer:       make([]byte, readBufferSize),
+			strings:      make([]byte, stringBufferSize),
+			stringsSlice: make([]string, 0, 32),
+			types:        make(map[reflect.Type]fieldIndexMap),
 		}
 	},
 }
@@ -30,6 +31,7 @@ type decoder struct {
 	buffer        []byte
 	strings       []byte
 	stringsLength int
+	stringsSlice  []string
 	types         map[reflect.Type]fieldIndexMap
 }
 
@@ -50,6 +52,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 	numbersStart := -1
 	commaPosition := -1
 	divideFloatBy := 1
+	arrayIndex := -1
 
 	var (
 		i             int
@@ -100,8 +103,14 @@ func (decoder *decoder) Decode(object interface{}) error {
 					destination := decoder.strings[decoder.stringsLength : decoder.stringsLength+length]
 					copy(destination, captured)
 					decoder.stringsLength += length
-					v.Field(fieldIndex).SetString(unsafe.BytesToString(destination))
-					fieldExists = false
+
+					if arrayIndex >= 0 {
+						decoder.stringsSlice = append(decoder.stringsSlice, unsafe.BytesToString(destination))
+						arrayIndex++
+					} else {
+						v.Field(fieldIndex).SetString(unsafe.BytesToString(destination))
+						fieldExists = false
+					}
 				} else {
 					fieldIndex, fieldExists = fieldIndices[string(captured)]
 
@@ -162,6 +171,20 @@ func (decoder *decoder) Decode(object interface{}) error {
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 				currentNumber = int64(c) - '0'
 				numbersStart = i
+
+			case '[':
+				arrayIndex = 0
+
+			case ']':
+				arrayIndex = -1
+				fieldExists = false
+
+				if len(decoder.stringsSlice) > 0 {
+					tmp := make([]string, len(decoder.stringsSlice))
+					copy(tmp, decoder.stringsSlice)
+					v.Field(fieldIndex).Set(reflect.ValueOf(tmp))
+					decoder.stringsSlice = decoder.stringsSlice[:0]
+				}
 			}
 		}
 
