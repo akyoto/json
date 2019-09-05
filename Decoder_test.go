@@ -14,17 +14,18 @@ import (
 )
 
 type Movie struct {
-	Title       string   `json:"title"`
-	Director    string   `json:"director"`
-	Plot        string   `json:"plot"`
-	Year        int      `json:"year"`
-	Duration    int      `json:"duration"`
-	Budget      int      `json:"budget"`
-	Rating      float64  `json:"rating"`
-	AspectRatio float64  `json:"aspectRatio"`
-	Profit      float64  `json:"profit"`
-	Starring    []string `json:"starring"`
-	Producers   []string `json:"producers"`
+	Title       string            `json:"title"`
+	Director    string            `json:"director"`
+	Plot        string            `json:"plot"`
+	Year        int               `json:"year"`
+	Duration    int               `json:"duration"`
+	Budget      int               `json:"budget"`
+	Rating      float64           `json:"rating"`
+	AspectRatio float64           `json:"aspectRatio"`
+	Profit      float64           `json:"profit"`
+	Starring    []string          `json:"starring"`
+	Producers   []string          `json:"producers"`
+	Mappings    map[string]string `json:"mappings"`
 }
 
 func TestDecodeStrings(t *testing.T) {
