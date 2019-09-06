@@ -26,9 +26,11 @@ var decoderPool = sync.Pool{
 	},
 }
 
-type stack struct {
-	value reflect.Value
-	keys  fieldIndexMap
+type decoderState struct {
+	value       reflect.Value
+	keys        fieldIndexMap
+	field       reflect.Value
+	fieldExists bool
 }
 
 type decoder struct {
@@ -39,15 +41,11 @@ type decoder struct {
 	stringsLength int
 	stringsSlice  []string
 	types         map[reflect.Type]fieldIndexMap
-	stack         [16]stack
+	states        [16]decoderState
 
 	// Initialized on every Decode call
 	stackDepth    int
-	currentStack  *stack
-	field         reflect.Value
-	fieldKind     reflect.Kind
-	fieldIndex    int
-	fieldExists   bool
+	state         *decoderState
 	currentNumber int64
 	stringStart   int
 	numbersStart  int
@@ -64,14 +62,11 @@ func NewDecoder(reader io.Reader) *decoder {
 	return decoder
 }
 
-// Reset resets the iterator state
-func (decoder *decoder) Reset(object interface{}) {
-	decoder.stackDepth = 0
-	decoder.currentStack = &decoder.stack[0]
-	decoder.currentStack.value = reflect.ValueOf(object).Elem()
-	decoder.currentStack.keys = decoder.fieldIndexMap(decoder.currentStack.value.Type())
-	decoder.field = reflect.Value{}
-	decoder.fieldKind = reflect.Invalid
+// reset resets the iterator state.
+func (decoder *decoder) reset(object interface{}) {
+	decoder.stackDepth = -1
+	decoder.push(reflect.ValueOf(object))
+
 	decoder.stringStart = -1
 	decoder.numbersStart = -1
 	decoder.commaPosition = -1
@@ -79,9 +74,29 @@ func (decoder *decoder) Reset(object interface{}) {
 	decoder.arrayIndex = -1
 }
 
+// push creates a new element on the stack.
+func (decoder *decoder) push(value reflect.Value) {
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+
+	decoder.stackDepth++
+	decoder.state = &decoder.states[decoder.stackDepth]
+	decoder.state.value = value
+	decoder.state.keys = decoder.fieldIndexMap(value.Type())
+	decoder.state.field = reflect.Value{}
+	decoder.state.fieldExists = false
+}
+
+// pop removes the last element on the stack.
+func (decoder *decoder) pop() {
+	decoder.stackDepth--
+	decoder.state = &decoder.states[decoder.stackDepth]
+}
+
 // Decode deserializes the JSON data into the given object.
 func (decoder *decoder) Decode(object interface{}) error {
-	decoder.Reset(object)
+	decoder.reset(object)
 
 	var (
 		i int
@@ -108,7 +123,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				captured := decoder.buffer[decoder.stringStart:i]
 
-				if decoder.fieldExists {
+				if decoder.state.fieldExists {
 					length := len(captured)
 
 					if decoder.stringsLength+length > len(decoder.strings) {
@@ -134,18 +149,18 @@ func (decoder *decoder) Decode(object interface{}) error {
 						decoder.stringsSlice = append(decoder.stringsSlice, unsafe.BytesToString(destination))
 						decoder.arrayIndex++
 					} else {
-						decoder.field.SetString(unsafe.BytesToString(destination))
-						decoder.fieldExists = false
+						decoder.state.field.SetString(unsafe.BytesToString(destination))
+						decoder.state.fieldExists = false
 					}
 				} else {
-					decoder.fieldIndex, decoder.fieldExists = decoder.currentStack.keys[string(captured)]
+					var fieldIndex int
+					fieldIndex, decoder.state.fieldExists = decoder.state.keys[string(captured)]
 
-					if !decoder.fieldExists {
+					if !decoder.state.fieldExists {
 						return fmt.Errorf("Field does not exist: %s", string(captured))
 					}
 
-					decoder.field = decoder.currentStack.value.Field(decoder.fieldIndex)
-					decoder.fieldKind = decoder.field.Kind()
+					decoder.state.field = decoder.state.value.Field(fieldIndex)
 				}
 
 				decoder.stringStart = -1
@@ -177,16 +192,16 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				if c == ',' || c == '}' {
 					if decoder.commaPosition >= 0 {
-						decoder.field.SetFloat(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
+						decoder.state.field.SetFloat(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
 					} else {
-						decoder.field.SetInt(decoder.currentNumber)
+						decoder.state.field.SetInt(decoder.currentNumber)
 					}
 
 					decoder.currentNumber = 0
 					decoder.numbersStart = -1
 					decoder.commaPosition = -1
 					decoder.divideFloatBy = 1
-					decoder.fieldExists = false
+					decoder.state.fieldExists = false
 					continue
 				}
 
@@ -201,25 +216,36 @@ func (decoder *decoder) Decode(object interface{}) error {
 				decoder.currentNumber = int64(c) - '0'
 				decoder.numbersStart = i
 
-			case '{':
-				switch decoder.fieldKind {
-				case reflect.Map:
-
-				}
-
 			case '[':
 				decoder.arrayIndex = 0
 
 			case ']':
 				decoder.arrayIndex = -1
-				decoder.fieldExists = false
+				decoder.state.fieldExists = false
 
 				if len(decoder.stringsSlice) > 0 {
 					tmp := make([]string, len(decoder.stringsSlice))
 					copy(tmp, decoder.stringsSlice)
-					decoder.field.Set(reflect.ValueOf(tmp))
+					decoder.state.field.Set(reflect.ValueOf(tmp))
 					decoder.stringsSlice = decoder.stringsSlice[:0]
 				}
+
+			case '{':
+				if !decoder.state.fieldExists {
+					continue
+				}
+
+				switch decoder.state.field.Kind() {
+				case reflect.Map:
+
+				}
+
+			case '}':
+				if !decoder.state.fieldExists {
+					continue
+				}
+
+				decoder.pop()
 			}
 		}
 
