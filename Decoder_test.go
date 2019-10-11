@@ -14,18 +14,20 @@ import (
 )
 
 type Movie struct {
-	Title       string            `json:"title"`
-	Director    string            `json:"director"`
-	Plot        string            `json:"plot"`
-	Year        int               `json:"year"`
-	Duration    int               `json:"duration"`
-	Budget      int               `json:"budget"`
-	Rating      float64           `json:"rating"`
-	AspectRatio float64           `json:"aspectRatio"`
-	Profit      float64           `json:"profit"`
-	Starring    []string          `json:"starring"`
-	Producers   []string          `json:"producers"`
-	Mappings    map[string]string `json:"mappings"`
+	Title         string            `json:"title"`
+	Director      string            `json:"director"`
+	Plot          string            `json:"plot"`
+	Year          int               `json:"year"`
+	Duration      int               `json:"duration"`
+	Budget        int               `json:"budget"`
+	NegativeInt   int               `json:"negativeInt"`
+	Rating        float64           `json:"rating"`
+	AspectRatio   float64           `json:"aspectRatio"`
+	Profit        float64           `json:"profit"`
+	NegativeFloat float64           `json:"negativeFloat"`
+	Starring      []string          `json:"starring"`
+	Producers     []string          `json:"producers"`
+	Mappings      map[string]string `json:"mappings"`
 }
 
 func TestDecodeStrings(t *testing.T) {
@@ -44,6 +46,7 @@ func TestDecodeIntegers(t *testing.T) {
 	assert.Equal(t, movie.Year, 2003)
 	assert.Equal(t, movie.Duration, 160)
 	assert.Equal(t, movie.Budget, 140000000)
+	assert.Equal(t, movie.NegativeInt, -42)
 }
 
 func TestDecodeFloats(t *testing.T) {
@@ -53,6 +56,7 @@ func TestDecodeFloats(t *testing.T) {
 	assert.Equal(t, movie.Rating, 7.7)
 	assert.Equal(t, movie.AspectRatio, 2.35)
 	assert.Equal(t, movie.Profit, 454.627263)
+	assert.Equal(t, movie.NegativeFloat, -123.456)
 }
 
 func TestDecodeArrays(t *testing.T) {

@@ -46,6 +46,7 @@ type decoder struct {
 	numbersStart  int
 	commaPosition int
 	divideFloatBy int
+	isNegative    bool
 	arrayIndex    int
 }
 
@@ -67,6 +68,7 @@ func (decoder *decoder) reset(object interface{}) {
 	decoder.commaPosition = -1
 	decoder.divideFloatBy = 1
 	decoder.arrayIndex = -1
+	// decoder.isNegative = false
 }
 
 // push creates a new element on the stack.
@@ -169,6 +171,11 @@ func (decoder *decoder) Decode(object interface{}) error {
 				}
 
 				if c == ',' || c == '}' {
+					if decoder.isNegative {
+						decoder.currentNumber = -decoder.currentNumber
+						decoder.isNegative = false
+					}
+
 					if decoder.commaPosition >= 0 {
 						decoder.state.field.SetFloat(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
 					} else {
@@ -193,6 +200,11 @@ func (decoder *decoder) Decode(object interface{}) error {
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 				decoder.currentNumber = int64(c) - '0'
 				decoder.numbersStart = i
+
+			case '-':
+				decoder.currentNumber = 0
+				decoder.numbersStart = i + 1
+				decoder.isNegative = true
 
 			case '[':
 				decoder.arrayIndex = 0
