@@ -10,16 +10,13 @@ import (
 )
 
 const (
-	readBufferSize      = 4096
-	stringBufferSize    = 4096
-	maxStringBufferSize = 16384
+	readBufferSize = 4096
 )
 
 var decoderPool = sync.Pool{
 	New: func() interface{} {
 		return &decoder{
 			buffer:       make([]byte, readBufferSize),
-			strings:      make([]byte, stringBufferSize),
 			stringsSlice: make([]string, 0, 32),
 			types:        make(map[reflect.Type]fieldIndexMap),
 		}
@@ -35,13 +32,11 @@ type decoderState struct {
 
 type decoder struct {
 	// Initialized once
-	reader        io.Reader
-	buffer        []byte
-	strings       []byte
-	stringsLength int
-	stringsSlice  []string
-	types         map[reflect.Type]fieldIndexMap
-	states        [16]decoderState
+	reader       io.Reader
+	buffer       []byte
+	stringsSlice []string
+	types        map[reflect.Type]fieldIndexMap
+	states       [16]decoderState
 
 	// Initialized on every Decode call
 	stackDepth    int
@@ -125,31 +120,14 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				if decoder.state.fieldExists {
 					length := len(captured)
-
-					if decoder.stringsLength+length > len(decoder.strings) {
-						newBufferLength := len(decoder.strings) * 2
-
-						if newBufferLength > maxStringBufferSize {
-							newBufferLength = maxStringBufferSize
-						}
-
-						if newBufferLength < length {
-							newBufferLength = length
-						}
-
-						decoder.strings = make([]byte, newBufferLength)
-						decoder.stringsLength = 0
-					}
-
-					destination := decoder.strings[decoder.stringsLength : decoder.stringsLength+length]
-					copy(destination, captured)
-					decoder.stringsLength += length
+					tmp := make([]byte, length)
+					copy(tmp, captured)
 
 					if decoder.arrayIndex >= 0 {
-						decoder.stringsSlice = append(decoder.stringsSlice, unsafe.BytesToString(destination))
+						decoder.stringsSlice = append(decoder.stringsSlice, unsafe.BytesToString(tmp))
 						decoder.arrayIndex++
 					} else {
-						decoder.state.field.SetString(unsafe.BytesToString(destination))
+						decoder.state.field.SetString(unsafe.BytesToString(tmp))
 						decoder.state.fieldExists = false
 					}
 				} else {
