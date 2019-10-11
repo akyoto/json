@@ -68,7 +68,7 @@ func (decoder *decoder) reset(object interface{}) {
 	decoder.commaPosition = -1
 	decoder.divideFloatBy = 1
 	decoder.arrayIndex = -1
-	// decoder.isNegative = false
+	decoder.isNegative = false
 }
 
 // push creates a new element on the stack.
