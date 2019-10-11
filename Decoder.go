@@ -5,8 +5,6 @@ import (
 	"io"
 	"reflect"
 	"sync"
-
-	"github.com/akyoto/stringutils/unsafe"
 )
 
 const (
@@ -121,15 +119,11 @@ func (decoder *decoder) Decode(object interface{}) error {
 				captured := decoder.buffer[decoder.stringStart:i]
 
 				if decoder.state.fieldExists {
-					length := len(captured)
-					tmp := make([]byte, length)
-					copy(tmp, captured)
-
 					if decoder.arrayIndex >= 0 {
-						decoder.stringsSlice = append(decoder.stringsSlice, unsafe.BytesToString(tmp))
+						decoder.stringsSlice = append(decoder.stringsSlice, string(captured))
 						decoder.arrayIndex++
 					} else {
-						decoder.state.field.SetString(unsafe.BytesToString(tmp))
+						decoder.state.field.SetString(string(captured))
 						decoder.state.fieldExists = false
 					}
 				} else {
