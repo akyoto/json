@@ -103,6 +103,8 @@ func TestDecodeAll(t *testing.T) {
 	assert.Equal(t, movie.Rating, 7.7)
 	assert.Equal(t, movie.AspectRatio, 2.35)
 	assert.Equal(t, movie.Profit, 454.627263)
+	assert.Equal(t, movie.Finished, true)
+	assert.Equal(t, movie.Draft, false)
 	assert.Equal(t, len(movie.Starring), 8)
 	assert.Equal(t, movie.Starring[0], "Tom Cruise")
 	assert.Equal(t, movie.Starring[1], "Timothy Spall")
