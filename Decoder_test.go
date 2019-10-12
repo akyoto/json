@@ -25,6 +25,8 @@ type Movie struct {
 	AspectRatio   float64           `json:"aspectRatio"`
 	Profit        float64           `json:"profit"`
 	NegativeFloat float64           `json:"negativeFloat"`
+	Finished      bool              `json:"finished"`
+	Draft         bool              `json:"draft"`
 	Starring      []string          `json:"starring"`
 	Producers     []string          `json:"producers"`
 	Mappings      map[string]string `json:"mappings"`
@@ -57,6 +59,14 @@ func TestDecodeFloats(t *testing.T) {
 	assert.Equal(t, movie.AspectRatio, 2.35)
 	assert.Equal(t, movie.Profit, 454.627263)
 	assert.Equal(t, movie.NegativeFloat, -123.456)
+}
+
+func TestDecodeBooleans(t *testing.T) {
+	movie, err := load("testdata/movie-booleans.json")
+	assert.Nil(t, err)
+	assert.NotNil(t, movie)
+	assert.Equal(t, movie.Finished, true)
+	assert.Equal(t, movie.Draft, false)
 }
 
 func TestDecodeArrays(t *testing.T) {

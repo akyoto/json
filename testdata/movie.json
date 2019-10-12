@@ -10,6 +10,8 @@
 	"aspectRatio": 2.35,
 	"profit": 454.627263,
 	"negativeFloat": -123.456,
+	"finished": true,
+	"draft": false,
 	"starring": [
 		"Tom Cruise",
 		"Timothy Spall",

@@ -230,6 +230,15 @@ func (decoder *decoder) Decode(object interface{}) error {
 				}
 
 				decoder.pop()
+
+			// true
+			case 't':
+
+			// false
+			case 'f':
+
+			// null
+			case 'n':
 			}
 		}
 
