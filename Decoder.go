@@ -239,7 +239,6 @@ func (decoder *decoder) Decode(object interface{}) error {
 					decoder.state.fieldExists = false
 				}
 
-			// false
 			case 'f':
 				i += len("alse")
 
@@ -248,7 +247,6 @@ func (decoder *decoder) Decode(object interface{}) error {
 					decoder.state.fieldExists = false
 				}
 
-			// null
 			case 'n':
 				i += len("ull")
 
