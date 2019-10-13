@@ -231,9 +231,8 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				decoder.pop()
 
-			// true
 			case 't':
-				i += 3
+				i += len("rue")
 
 				if decoder.state.fieldExists {
 					decoder.state.field.SetBool(true)
@@ -242,7 +241,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			// false
 			case 'f':
-				i += 4
+				i += len("alse")
 
 				if decoder.state.fieldExists {
 					decoder.state.field.SetBool(false)
@@ -251,7 +250,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			// null
 			case 'n':
-				i += 3
+				i += len("ull")
 
 				if decoder.state.fieldExists {
 					decoder.state.field.Set(reflect.Zero(decoder.state.field.Type()))
