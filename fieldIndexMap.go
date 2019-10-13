@@ -10,6 +10,10 @@ type fieldIndexMap = map[string]int
 
 // fieldIndexMap returns a map of field names mapped to their index.
 func (decoder *decoder) fieldIndexMap(structType reflect.Type) fieldIndexMap {
+	if structType.Kind() != reflect.Struct {
+		return nil
+	}
+
 	fieldsObj, exists := decoder.types[structType]
 
 	if exists {

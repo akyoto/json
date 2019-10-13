@@ -7,9 +7,7 @@ import (
 	"sync"
 )
 
-const (
-	readBufferSize = 4096
-)
+const readBufferSize = 4096
 
 var decoderPool = sync.Pool{
 	New: func() interface{} {
@@ -54,39 +52,6 @@ func NewDecoder(reader io.Reader) *decoder {
 	decoder := poolObj.(*decoder)
 	decoder.reader = reader
 	return decoder
-}
-
-// reset resets the iterator state.
-func (decoder *decoder) reset(object interface{}) {
-	decoder.stackDepth = -1
-	decoder.push(reflect.ValueOf(object))
-
-	decoder.stringStart = -1
-	decoder.numbersStart = -1
-	decoder.commaPosition = -1
-	decoder.divideFloatBy = 1
-	decoder.arrayIndex = -1
-	decoder.isNegative = false
-}
-
-// push creates a new element on the stack.
-func (decoder *decoder) push(value reflect.Value) {
-	if value.Kind() == reflect.Ptr {
-		value = value.Elem()
-	}
-
-	decoder.stackDepth++
-	decoder.state = &decoder.states[decoder.stackDepth]
-	decoder.state.value = value
-	decoder.state.keys = decoder.fieldIndexMap(value.Type())
-	decoder.state.field = reflect.Value{}
-	decoder.state.fieldExists = false
-}
-
-// pop removes the last element on the stack.
-func (decoder *decoder) pop() {
-	decoder.stackDepth--
-	decoder.state = &decoder.states[decoder.stackDepth]
 }
 
 // Decode deserializes the JSON data into the given object.
@@ -187,6 +152,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				continue
 			}
 
+			// Based on the character we encounter, adjust the state
 			switch c {
 			case '"':
 				decoder.stringStart = i + 1
@@ -268,4 +234,37 @@ func (decoder *decoder) Decode(object interface{}) error {
 func (decoder *decoder) Close() {
 	decoder.reader = nil
 	decoderPool.Put(decoder)
+}
+
+// reset resets the iterator state.
+func (decoder *decoder) reset(object interface{}) {
+	decoder.stackDepth = -1
+	decoder.push(reflect.ValueOf(object))
+
+	decoder.stringStart = -1
+	decoder.numbersStart = -1
+	decoder.commaPosition = -1
+	decoder.divideFloatBy = 1
+	decoder.arrayIndex = -1
+	decoder.isNegative = false
+}
+
+// push creates a new element on the stack.
+func (decoder *decoder) push(value reflect.Value) {
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+
+	decoder.stackDepth++
+	decoder.state = &decoder.states[decoder.stackDepth]
+	decoder.state.value = value
+	decoder.state.keys = decoder.fieldIndexMap(value.Type())
+	decoder.state.field = reflect.Value{}
+	decoder.state.fieldExists = false
+}
+
+// pop removes the last element on the stack.
+func (decoder *decoder) pop() {
+	decoder.stackDepth--
+	decoder.state = &decoder.states[decoder.stackDepth]
 }
