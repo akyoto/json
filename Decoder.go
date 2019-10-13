@@ -21,6 +21,7 @@ var decoderPool = sync.Pool{
 
 type decoderState struct {
 	value       reflect.Value
+	kind        reflect.Kind
 	keys        fieldIndexMap
 	field       reflect.Value
 	fieldExists bool
@@ -83,23 +84,35 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				captured := decoder.buffer[decoder.stringStart:i]
 
-				if decoder.state.fieldExists {
-					if decoder.arrayIndex >= 0 {
-						decoder.stringsSlice = append(decoder.stringsSlice, string(captured))
-						decoder.arrayIndex++
+				switch decoder.state.kind {
+				case reflect.Struct:
+					if decoder.state.fieldExists {
+						if decoder.arrayIndex >= 0 {
+							decoder.stringsSlice = append(decoder.stringsSlice, string(captured))
+							decoder.arrayIndex++
+						} else {
+							decoder.state.field.SetString(string(captured))
+							decoder.state.fieldExists = false
+						}
 					} else {
-						decoder.state.field.SetString(string(captured))
+						var fieldIndex int
+						fieldIndex, decoder.state.fieldExists = decoder.state.keys[string(captured)]
+
+						if !decoder.state.fieldExists {
+							return fmt.Errorf("Field does not exist: %s", string(captured))
+						}
+
+						decoder.state.field = decoder.state.value.Field(fieldIndex)
+					}
+
+				case reflect.Map:
+					if decoder.state.fieldExists {
+						decoder.state.value.SetMapIndex(decoder.state.field, reflect.ValueOf(string(captured)))
 						decoder.state.fieldExists = false
+					} else {
+						decoder.state.field = reflect.ValueOf(string(captured))
+						decoder.state.fieldExists = true
 					}
-				} else {
-					var fieldIndex int
-					fieldIndex, decoder.state.fieldExists = decoder.state.keys[string(captured)]
-
-					if !decoder.state.fieldExists {
-						return fmt.Errorf("Field does not exist: %s", string(captured))
-					}
-
-					decoder.state.field = decoder.state.value.Field(fieldIndex)
 				}
 
 				decoder.stringStart = -1
@@ -187,14 +200,13 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				switch decoder.state.field.Kind() {
 				case reflect.Map:
-
+					object := reflect.MakeMap(decoder.state.field.Type())
+					decoder.state.field.Set(object)
+					decoder.state.fieldExists = false
+					decoder.push(object)
 				}
 
 			case '}':
-				if !decoder.state.fieldExists {
-					continue
-				}
-
 				decoder.pop()
 
 			case 't':
@@ -258,6 +270,7 @@ func (decoder *decoder) push(value reflect.Value) {
 	decoder.stackDepth++
 	decoder.state = &decoder.states[decoder.stackDepth]
 	decoder.state.value = value
+	decoder.state.kind = value.Kind()
 	decoder.state.keys = decoder.fieldIndexMap(value.Type())
 	decoder.state.field = reflect.Value{}
 	decoder.state.fieldExists = false
@@ -265,6 +278,10 @@ func (decoder *decoder) push(value reflect.Value) {
 
 // pop removes the last element on the stack.
 func (decoder *decoder) pop() {
+	if decoder.stackDepth == 0 {
+		return
+	}
+
 	decoder.stackDepth--
 	decoder.state = &decoder.states[decoder.stackDepth]
 }

@@ -30,5 +30,9 @@
 		"Paula Wagner",
 		"Scott Kroopf",
 		"Tom Engelman"
-	]
+	],
+	"mappings": {
+		"imdb": "tt0325710",
+		"wikipedia": "The_Last_Samurai"
+	}
 }

@@ -84,12 +84,23 @@ func TestDecodeArrays(t *testing.T) {
 	assert.Equal(t, movie.Starring[5], "Hiroyuki Sanada")
 	assert.Equal(t, movie.Starring[6], "Koyuki")
 	assert.Equal(t, movie.Starring[7], "Shin Koyamada")
+	assert.Equal(t, len(movie.Producers), 6)
 	assert.Equal(t, movie.Producers[0], "Marshall Herskovitz")
 	assert.Equal(t, movie.Producers[1], "Edward Zwick")
 	assert.Equal(t, movie.Producers[2], "Tom Cruise")
 	assert.Equal(t, movie.Producers[3], "Paula Wagner")
 	assert.Equal(t, movie.Producers[4], "Scott Kroopf")
 	assert.Equal(t, movie.Producers[5], "Tom Engelman")
+}
+
+func TestDecodeMaps(t *testing.T) {
+	movie, err := load("testdata/movie-maps.json")
+	assert.Nil(t, err)
+	assert.NotNil(t, movie)
+	assert.NotNil(t, movie.Mappings)
+	assert.Equal(t, movie.Mappings["imdb"], "tt0325710")
+	assert.Equal(t, movie.Mappings["wikipedia"], "The_Last_Samurai")
+	assert.Equal(t, movie.Mappings["microsoft store"], "8d6kgwzl5g4m")
 }
 
 func TestDecodeAll(t *testing.T) {
@@ -116,12 +127,17 @@ func TestDecodeAll(t *testing.T) {
 	assert.Equal(t, movie.Starring[5], "Hiroyuki Sanada")
 	assert.Equal(t, movie.Starring[6], "Koyuki")
 	assert.Equal(t, movie.Starring[7], "Shin Koyamada")
+	assert.Equal(t, len(movie.Producers), 6)
 	assert.Equal(t, movie.Producers[0], "Marshall Herskovitz")
 	assert.Equal(t, movie.Producers[1], "Edward Zwick")
 	assert.Equal(t, movie.Producers[2], "Tom Cruise")
 	assert.Equal(t, movie.Producers[3], "Paula Wagner")
 	assert.Equal(t, movie.Producers[4], "Scott Kroopf")
 	assert.Equal(t, movie.Producers[5], "Tom Engelman")
+	assert.NotNil(t, movie.Mappings)
+	assert.Equal(t, movie.Mappings["imdb"], "tt0325710")
+	assert.Equal(t, movie.Mappings["wikipedia"], "The_Last_Samurai")
+	assert.Equal(t, movie.Mappings["microsoft store"], "8d6kgwzl5g4m")
 }
 
 // load loads a single JSON file as movie data.
@@ -333,6 +349,57 @@ func BenchmarkDecodeArraysJsoniter(b *testing.B) {
 
 func BenchmarkDecodeArraysStd(b *testing.B) {
 	data, _ := ioutil.ReadFile("testdata/movie-arrays.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := stdJSON.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeMaps(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-maps.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := json.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeMapsJsoniter(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-maps.json")
+	reader := bytes.NewReader(data)
+	movie := &Movie{}
+	decoder := jsoniter.NewDecoder(reader)
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		reader.Seek(0, io.SeekStart) // nolint:errcheck
+		err := decoder.Decode(movie)
+
+		if err != nil && err != io.EOF {
+			b.Fatalf("Decode failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeMapsStd(b *testing.B) {
+	data, _ := ioutil.ReadFile("testdata/movie-maps.json")
 	reader := bytes.NewReader(data)
 	movie := &Movie{}
 	decoder := stdJSON.NewDecoder(reader)
