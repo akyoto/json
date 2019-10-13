@@ -233,12 +233,30 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 			// true
 			case 't':
+				i += 3
+
+				if decoder.state.fieldExists {
+					decoder.state.field.SetBool(true)
+					decoder.state.fieldExists = false
+				}
 
 			// false
 			case 'f':
+				i += 4
+
+				if decoder.state.fieldExists {
+					decoder.state.field.SetBool(false)
+					decoder.state.fieldExists = false
+				}
 
 			// null
 			case 'n':
+				i += 3
+
+				if decoder.state.fieldExists {
+					decoder.state.field.Set(reflect.Zero(decoder.state.field.Type()))
+					decoder.state.fieldExists = false
+				}
 			}
 		}
 

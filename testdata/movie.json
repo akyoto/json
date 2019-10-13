@@ -12,6 +12,7 @@
 	"negativeFloat": -123.456,
 	"finished": true,
 	"draft": false,
+	"null": null,
 	"starring": [
 		"Tom Cruise",
 		"Timothy Spall",
