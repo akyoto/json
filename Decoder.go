@@ -1,10 +1,11 @@
 package json
 
 import (
-	"fmt"
 	"io"
 	"reflect"
 	"sync"
+
+	"github.com/akyoto/mirror"
 )
 
 const readBufferSize = 4096
@@ -14,17 +15,20 @@ var decoderPool = sync.Pool{
 		return &decoder{
 			buffer:       make([]byte, readBufferSize),
 			stringsSlice: make([]string, 0, 32),
-			types:        make(map[reflect.Type]fieldIndexMap),
 		}
 	},
 }
 
 type decoderState struct {
-	value       reflect.Value
+	object      interface{}
+	typ         mirror.Type
 	kind        reflect.Kind
-	keys        fieldIndexMap
-	field       reflect.Value
+	fieldName   string
 	fieldExists bool
+}
+
+func (state *decoderState) SetField(value interface{}) {
+	state.typ.(mirror.StructType).SetFieldByJSONTag(state.object, state.fieldName, value)
 }
 
 type decoder struct {
@@ -32,7 +36,6 @@ type decoder struct {
 	reader       io.Reader
 	buffer       []byte
 	stringsSlice []string
-	types        map[reflect.Type]fieldIndexMap
 	states       [16]decoderState
 
 	// Initialized on every Decode call
@@ -91,26 +94,20 @@ func (decoder *decoder) Decode(object interface{}) error {
 							decoder.stringsSlice = append(decoder.stringsSlice, string(captured))
 							decoder.arrayIndex++
 						} else {
-							decoder.state.field.SetString(string(captured))
+							decoder.state.SetField(string(captured))
 							decoder.state.fieldExists = false
 						}
 					} else {
-						var fieldIndex int
-						fieldIndex, decoder.state.fieldExists = decoder.state.keys[string(captured)]
-
-						if !decoder.state.fieldExists {
-							return fmt.Errorf("Field does not exist: %s", string(captured))
-						}
-
-						decoder.state.field = decoder.state.value.Field(fieldIndex)
+						decoder.state.fieldName = string(captured)
+						decoder.state.fieldExists = true
 					}
 
 				case reflect.Map:
 					if decoder.state.fieldExists {
-						decoder.state.value.SetMapIndex(decoder.state.field, reflect.ValueOf(string(captured)))
+						// decoder.state.value.SetMapIndex(decoder.state.field, reflect.ValueOf(string(captured)))
 						decoder.state.fieldExists = false
 					} else {
-						decoder.state.field = reflect.ValueOf(string(captured))
+						// decoder.state.field = reflect.ValueOf(string(captured))
 						decoder.state.fieldExists = true
 					}
 				}
@@ -149,9 +146,9 @@ func (decoder *decoder) Decode(object interface{}) error {
 					}
 
 					if decoder.commaPosition >= 0 {
-						decoder.state.field.SetFloat(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
+						decoder.state.SetField(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
 					} else {
-						decoder.state.field.SetInt(decoder.currentNumber)
+						decoder.state.SetField(decoder.currentNumber)
 					}
 
 					decoder.currentNumber = 0
@@ -189,7 +186,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				if len(decoder.stringsSlice) > 0 {
 					tmp := make([]string, len(decoder.stringsSlice))
 					copy(tmp, decoder.stringsSlice)
-					decoder.state.field.Set(reflect.ValueOf(tmp))
+					decoder.state.SetField(tmp)
 					decoder.stringsSlice = decoder.stringsSlice[:0]
 				}
 
@@ -198,13 +195,13 @@ func (decoder *decoder) Decode(object interface{}) error {
 					continue
 				}
 
-				switch decoder.state.field.Kind() {
-				case reflect.Map:
-					object := reflect.MakeMap(decoder.state.field.Type())
-					decoder.state.field.Set(object)
-					decoder.state.fieldExists = false
-					decoder.push(object)
-				}
+				// switch decoder.state.field.Kind() {
+				// case reflect.Map:
+				// 	object := reflect.MakeMap(decoder.state.field.Type())
+				// 	decoder.state.SetField(object)
+				// 	decoder.state.fieldExists = false
+				// 	decoder.push(object)
+				// }
 
 			case '}':
 				decoder.pop()
@@ -213,7 +210,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("rue")
 
 				if decoder.state.fieldExists {
-					decoder.state.field.SetBool(true)
+					decoder.state.SetField(true)
 					decoder.state.fieldExists = false
 				}
 
@@ -221,7 +218,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("alse")
 
 				if decoder.state.fieldExists {
-					decoder.state.field.SetBool(false)
+					decoder.state.SetField(false)
 					decoder.state.fieldExists = false
 				}
 
@@ -229,7 +226,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("ull")
 
 				if decoder.state.fieldExists {
-					decoder.state.field.Set(reflect.Zero(decoder.state.field.Type()))
+					decoder.state.SetField(nil)
 					decoder.state.fieldExists = false
 				}
 			}
@@ -251,7 +248,7 @@ func (decoder *decoder) Close() {
 // reset resets the iterator state.
 func (decoder *decoder) reset(object interface{}) {
 	decoder.stackDepth = -1
-	decoder.push(reflect.ValueOf(object))
+	decoder.push(object)
 
 	decoder.stringStart = -1
 	decoder.numbersStart = -1
@@ -262,17 +259,17 @@ func (decoder *decoder) reset(object interface{}) {
 }
 
 // push creates a new element on the stack.
-func (decoder *decoder) push(value reflect.Value) {
-	if value.Kind() == reflect.Ptr {
-		value = value.Elem()
-	}
-
+func (decoder *decoder) push(object interface{}) {
 	decoder.stackDepth++
 	decoder.state = &decoder.states[decoder.stackDepth]
-	decoder.state.value = value
-	decoder.state.kind = value.Kind()
-	decoder.state.keys = decoder.fieldIndexMap(value.Type())
-	decoder.state.field = reflect.Value{}
+	decoder.state.object = object
+	decoder.state.typ = mirror.TypeOf(object)
+
+	if decoder.state.typ.Kind() == reflect.Ptr {
+		decoder.state.typ = decoder.state.typ.(mirror.PointerType).Elem()
+	}
+
+	decoder.state.kind = decoder.state.typ.Kind()
 	decoder.state.fieldExists = false
 }
 
