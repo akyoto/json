@@ -6,7 +6,7 @@ import (
 )
 
 // fieldIndexMap maps a field name to its position in the struct (index).
-type fieldIndexMap = map[string]int
+type fieldIndexMap = map[string]*reflect.StructField
 
 // fieldIndexMap returns a map of field names mapped to their index.
 func (decoder *decoder) fieldIndexMap(structType reflect.Type) fieldIndexMap {
@@ -33,9 +33,9 @@ func (decoder *decoder) fieldIndexMap(structType reflect.Type) fieldIndexMap {
 				jsonName = jsonName[:comma]
 			}
 
-			fields[jsonName] = i
+			fields[jsonName] = &field
 		} else {
-			fields[field.Name] = i
+			fields[field.Name] = &field
 		}
 	}
 

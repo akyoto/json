@@ -21,14 +21,18 @@ var decoderPool = sync.Pool{
 }
 
 type decoderState struct {
-	ptrType     unsafe.Pointer
-	ptrData     unsafe.Pointer
-	ptrField    unsafe.Pointer
-	value       reflect.Value
-	kind        reflect.Kind
-	keys        fieldIndexMap
-	field       reflect.Value
-	fieldExists bool
+	ptrType      unsafe.Pointer
+	ptrObject    unsafe.Pointer
+	ptrField     unsafe.Pointer
+	ptrFieldType unsafe.Pointer
+	structField  *reflect.StructField
+	kind         reflect.Kind
+	keys         fieldIndexMap
+	fieldExists  bool
+}
+
+func (state *decoderState) SetFieldValue(value interface{}) {
+	typedmemmove(state.ptrFieldType, state.ptrField, unpackEFace(value).data)
 }
 
 type decoder struct {
@@ -95,27 +99,27 @@ func (decoder *decoder) Decode(object interface{}) error {
 							decoder.stringsSlice = append(decoder.stringsSlice, string(captured))
 							decoder.arrayIndex++
 						} else {
-							decoder.state.field.SetString(string(captured))
+							decoder.state.SetFieldValue(string(captured))
 							decoder.state.fieldExists = false
 						}
 					} else {
-						var fieldIndex int
-						fieldIndex, decoder.state.fieldExists = decoder.state.keys[string(captured)]
+						var field *reflect.StructField
+						field, decoder.state.fieldExists = decoder.state.keys[string(captured)]
 
 						if !decoder.state.fieldExists {
 							return fmt.Errorf("Field does not exist: %s", string(captured))
 						}
 
-						decoder.state.field = decoder.state.value.Field(fieldIndex)
+						decoder.state.ptrField = unsafe.Pointer(uintptr(decoder.state.ptrObject) + field.Offset)
+						decoder.state.ptrFieldType = unpackEFace(field.Type).data
+						decoder.state.structField = field
 					}
 
 				case reflect.Map:
 					if decoder.state.fieldExists {
 						capturedStr := string(captured)
-						obj := unpackEFace(decoder.state.value.Interface()).data
-						key := decoder.state.ptrField
 						val := unsafe.Pointer(&capturedStr)
-						mapassign(decoder.state.ptrType, obj, key, val)
+						mapassign(decoder.state.ptrType, decoder.state.ptrObject, decoder.state.ptrField, val)
 						decoder.state.fieldExists = false
 					} else {
 						fieldName := string(captured)
@@ -158,9 +162,9 @@ func (decoder *decoder) Decode(object interface{}) error {
 					}
 
 					if decoder.commaPosition >= 0 {
-						decoder.state.field.SetFloat(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
+						decoder.state.SetFieldValue(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
 					} else {
-						decoder.state.field.SetInt(decoder.currentNumber)
+						decoder.state.SetFieldValue(decoder.currentNumber)
 					}
 
 					decoder.currentNumber = 0
@@ -198,7 +202,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				if len(decoder.stringsSlice) > 0 {
 					tmp := make([]string, len(decoder.stringsSlice))
 					copy(tmp, decoder.stringsSlice)
-					decoder.state.field.Set(reflect.ValueOf(tmp))
+					decoder.state.SetFieldValue(tmp)
 					decoder.stringsSlice = decoder.stringsSlice[:0]
 				}
 
@@ -207,12 +211,12 @@ func (decoder *decoder) Decode(object interface{}) error {
 					continue
 				}
 
-				switch decoder.state.field.Kind() {
+				switch decoder.state.structField.Type.Kind() {
 				case reflect.Map:
-					object := reflect.MakeMap(decoder.state.field.Type())
-					decoder.state.field.Set(object)
+					object := reflect.MakeMap(decoder.state.structField.Type)
+					decoder.state.SetFieldValue(object)
 					decoder.state.fieldExists = false
-					decoder.push(object)
+					decoder.push(object.Interface())
 				}
 
 			case '}':
@@ -222,7 +226,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("rue")
 
 				if decoder.state.fieldExists {
-					decoder.state.field.SetBool(true)
+					decoder.state.SetFieldValue(true)
 					decoder.state.fieldExists = false
 				}
 
@@ -230,7 +234,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("alse")
 
 				if decoder.state.fieldExists {
-					decoder.state.field.SetBool(false)
+					decoder.state.SetFieldValue(false)
 					decoder.state.fieldExists = false
 				}
 
@@ -238,7 +242,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("ull")
 
 				if decoder.state.fieldExists {
-					decoder.state.field.Set(reflect.Zero(decoder.state.field.Type()))
+					decoder.state.SetFieldValue(nil)
 					decoder.state.fieldExists = false
 				}
 			}
@@ -260,7 +264,7 @@ func (decoder *decoder) Close() {
 // reset resets the iterator state.
 func (decoder *decoder) reset(object interface{}) {
 	decoder.stackDepth = -1
-	decoder.push(reflect.ValueOf(object))
+	decoder.push(object)
 
 	decoder.stringStart = -1
 	decoder.numbersStart = -1
@@ -271,20 +275,17 @@ func (decoder *decoder) reset(object interface{}) {
 }
 
 // push creates a new element on the stack.
-func (decoder *decoder) push(value reflect.Value) {
-	if value.Kind() == reflect.Ptr {
-		value = value.Elem()
-	}
+func (decoder *decoder) push(object interface{}) {
+	typ := reflect.TypeOf(object)
 
 	decoder.stackDepth++
 	decoder.state = &decoder.states[decoder.stackDepth]
-	decoder.state.value = value
-	decoder.state.kind = value.Kind()
-	decoder.state.field = reflect.Value{}
-	decoder.state.fieldExists = false
-	typ := value.Type()
+	decoder.state.kind = typ.Kind()
+	decoder.state.ptrObject = unpackEFace(object).data
 	decoder.state.ptrType = unpackEFace(typ).data
+	decoder.state.ptrField = nil
 	decoder.state.keys = decoder.fieldIndexMap(typ)
+	decoder.state.fieldExists = false
 }
 
 // pop removes the last element on the stack.
