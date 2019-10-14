@@ -5,6 +5,7 @@ import (
 	"io"
 	"reflect"
 	"sync"
+	"unsafe"
 )
 
 const readBufferSize = 4096
@@ -20,6 +21,9 @@ var decoderPool = sync.Pool{
 }
 
 type decoderState struct {
+	ptrType     unsafe.Pointer
+	ptrData     unsafe.Pointer
+	ptrField    unsafe.Pointer
 	value       reflect.Value
 	kind        reflect.Kind
 	keys        fieldIndexMap
@@ -107,10 +111,15 @@ func (decoder *decoder) Decode(object interface{}) error {
 
 				case reflect.Map:
 					if decoder.state.fieldExists {
-						decoder.state.value.SetMapIndex(decoder.state.field, reflect.ValueOf(string(captured)))
+						capturedStr := string(captured)
+						obj := unpackEFace(decoder.state.value.Interface()).data
+						key := decoder.state.ptrField
+						val := unsafe.Pointer(&capturedStr)
+						mapassign(decoder.state.ptrType, obj, key, val)
 						decoder.state.fieldExists = false
 					} else {
-						decoder.state.field = reflect.ValueOf(string(captured))
+						fieldName := string(captured)
+						decoder.state.ptrField = unsafe.Pointer(&fieldName)
 						decoder.state.fieldExists = true
 					}
 				}
@@ -271,9 +280,11 @@ func (decoder *decoder) push(value reflect.Value) {
 	decoder.state = &decoder.states[decoder.stackDepth]
 	decoder.state.value = value
 	decoder.state.kind = value.Kind()
-	decoder.state.keys = decoder.fieldIndexMap(value.Type())
 	decoder.state.field = reflect.Value{}
 	decoder.state.fieldExists = false
+	typ := value.Type()
+	decoder.state.ptrType = unpackEFace(typ).data
+	decoder.state.keys = decoder.fieldIndexMap(typ)
 }
 
 // pop removes the last element on the stack.
