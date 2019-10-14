@@ -146,9 +146,10 @@ func (decoder *decoder) Decode(object interface{}) error {
 					}
 
 					if decoder.commaPosition >= 0 {
-						decoder.state.SetField(float64(decoder.currentNumber) / float64(decoder.divideFloatBy))
+						result := float64(decoder.currentNumber) / float64(decoder.divideFloatBy)
+						decoder.state.SetField(&result)
 					} else {
-						decoder.state.SetField(decoder.currentNumber)
+						decoder.state.SetField(&decoder.currentNumber)
 					}
 
 					decoder.currentNumber = 0
@@ -226,7 +227,7 @@ func (decoder *decoder) Decode(object interface{}) error {
 				i += len("ull")
 
 				if decoder.state.fieldExists {
-					decoder.state.SetField(nil)
+					// decoder.state.SetField(nil)
 					decoder.state.fieldExists = false
 				}
 			}
